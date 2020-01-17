@@ -1,71 +1,78 @@
-import React, { Component } from 'react'
+import React, { useEffect, useState, useRef } from "react";
 
 import {
   TextInput,
   findNodeHandle,
   NativeModules,
   Platform
-} from 'react-native'
+} from "react-native";
 
-const mask = NativeModules.RNTextInputMask.mask
-const unmask = NativeModules.RNTextInputMask.unmask
-const setMask = NativeModules.RNTextInputMask.setMask
-export { mask, unmask, setMask }
+const mask = NativeModules.RNTextInputMask.mask;
+const unmask = NativeModules.RNTextInputMask.unmask;
+const setMask = NativeModules.RNTextInputMask.setMask;
+export { mask, unmask, setMask };
 
-export default class TextInputMask extends Component {
-  static defaultProps = {
-    maskDefaultValue: true,
-  }
+function TextInputMask(props) {
+  const inputRef = useRef();
+  const masked = useRef(false);
+  const [prevValue, setPrevValue] = useState(props.value);
+  const [prevMask, setPrevMask] = useState(props.mask);
 
-  masked = false
-
-  componentDidMount() {
-    if (this.props.maskDefaultValue &&
-        this.props.mask &&
-        this.props.value) {
-      mask(this.props.mask, '' + this.props.value, text =>
-        this.input && this.input.setNativeProps({ text }),
-      )
-    }
-
-    if (this.props.mask && !this.masked) {
-      this.masked = true
-      setMask(findNodeHandle(this.input), this.props.mask)
-    }
-  }
-
-  componentWillReceiveProps(nextProps) {
-    if (nextProps.mask && (this.props.value !== nextProps.value)) {
-      mask(this.props.mask, '' + nextProps.value, text =>
-      this.input && this.input.setNativeProps({ text })
+  useEffect(() => {
+    if (props.maskDefaultValue && props.mask && props.value) {
+      mask(
+        props.mask,
+        "" + props.value,
+        text => inputRef.current && inputRef.current.setNativeProps({ text })
       );
     }
 
-    if (this.props.mask !== nextProps.mask) {
-      setMask(findNodeHandle(this.input), nextProps.mask)
+    if (props.mask && !masked.current) {
+      masked.current = true;
+      setMask(findNodeHandle(inputRef.current), props.mask);
     }
+  }, []);
+
+  if (props.mask && prevValue !== props.value) {
+    mask(
+      prevValue,
+      "" + value,
+      text => inputRef.current && inputRef.current.setNativeProps({ text })
+    );
+    setPrevValue(props.value);
   }
 
-  render() {
-    return (<TextInput
-      {...this.props}
+  if (prevMask !== props.mask) {
+    setMask(findNodeHandle(inputRef.current), props.mask);
+    setPrevMask(props.mask);
+  }
+
+  return (
+    <TextInput
+      {...props}
       value={undefined}
       ref={ref => {
-        this.input = ref
-        if (typeof this.props.refInput === 'function') {
-          this.props.refInput(ref)
+        inputRef.current = ref;
+        if (typeof props.refInput === "function") {
+          props.refInput(ref);
         }
       }}
-      multiline={this.props.mask && Platform.OS === 'ios' ? false : this.props.multiline}
+      multiline={props.mask && Platform.OS === "ios" ? false : props.multiline}
       onChangeText={masked => {
-        if (this.props.mask) {
-          const _unmasked = unmask(this.props.mask, masked, unmasked => {
-            this.props.onChangeText && this.props.onChangeText(masked, unmasked)
-          })
+        if (props.mask) {
+          const _unmasked = unmask(props.mask, masked, unmasked => {
+            props.onChangeText && props.onChangeText(masked, unmasked);
+          });
         } else {
-          this.props.onChangeText && this.props.onChangeText(masked)
+          props.onChangeText && props.onChangeText(masked);
         }
       }}
-    />);
-  }
+    />
+  );
 }
+
+TextInputMask.defaultProps = {
+  maskDefaultValue: true
+};
+
+export default TextInputMask;
