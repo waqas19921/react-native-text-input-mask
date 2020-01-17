@@ -11,9 +11,9 @@ export interface TextInputMaskProps
   maskDefaultValue?: boolean;
   mask?: string;
   onChangeText?: onChangeTextCallback;
-  refInput?: React.LegacyRef<TextInput>;
 }
 
-export default <React.FC<TextInputMaskProps>>(
-  function TextInputMask(): JSX.Element {}
-);
+export default React.forwardRef<TextInput, TextInputMaskProps>(function(
+  props,
+  ref
+): JSX.Element {});

@@ -12,11 +12,11 @@ const unmask = NativeModules.RNTextInputMask.unmask;
 const setMask = NativeModules.RNTextInputMask.setMask;
 export { mask, unmask, setMask };
 
-function TextInputMask(props) {
+const TextInputMask = React.forwardRef((props, ref) => {
   const inputRef = useRef();
   const masked = useRef(false);
-  const [prevValue, setPrevValue] = useState(props.value);
   const [prevMask, setPrevMask] = useState(props.mask);
+  const [prevValue, setPrevValue] = useState(props.mask);
 
   useEffect(() => {
     if (props.maskDefaultValue && props.mask && props.value) {
@@ -29,21 +29,22 @@ function TextInputMask(props) {
 
     if (props.mask && !masked.current) {
       masked.current = true;
-      setMask(findNodeHandle(inputRef.current), props.mask);
+      inputRef.current && setMask(findNodeHandle(inputRef.current), props.mask);
     }
   }, []);
 
-  if (props.mask && prevValue !== props.value) {
-    mask(
-      prevValue,
-      "" + value,
-      text => inputRef.current && inputRef.current.setNativeProps({ text })
-    );
+  if (prevValue !== props.value) {
+    props.mask &&
+      mask(
+        props.mask,
+        "" + props.value,
+        text => !!inputRef.current && inputRef.current.setNativeProps({ text })
+      );
     setPrevValue(props.value);
   }
 
   if (prevMask !== props.mask) {
-    setMask(findNodeHandle(inputRef.current), props.mask);
+    inputRef.current && setMask(findNodeHandle(inputRef.current), props.mask);
     setPrevMask(props.mask);
   }
 
@@ -51,11 +52,9 @@ function TextInputMask(props) {
     <TextInput
       {...props}
       value={undefined}
-      ref={ref => {
-        inputRef.current = ref;
-        if (typeof props.refInput === "function") {
-          props.refInput(ref);
-        }
+      ref={textInputRef => {
+        inputRef.current = textInputRef;
+        ref && ref(textInputRef);
       }}
       multiline={props.mask && Platform.OS === "ios" ? false : props.multiline}
       onChangeText={masked => {
@@ -69,7 +68,7 @@ function TextInputMask(props) {
       }}
     />
   );
-}
+});
 
 TextInputMask.defaultProps = {
   maskDefaultValue: true
