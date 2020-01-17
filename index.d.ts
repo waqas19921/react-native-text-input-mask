@@ -1,4 +1,4 @@
-import * as React from "react";
+import React, { ForwardRefExoticComponent, PropsWithoutRef, RefAttributes} from "react";
 import { TextInputProps, TextInput } from "react-native";
 
 export type onChangeTextCallback = (
@@ -13,7 +13,6 @@ export interface TextInputMaskProps
   onChangeText?: onChangeTextCallback;
 }
 
-export default React.forwardRef<TextInput, TextInputMaskProps>(function(
-  props,
-  ref
-): JSX.Element {});
+declare const TextInputMask : ForwardRefExoticComponent<PropsWithoutRef<TextInputMaskProps> & RefAttributes<TextInput>>;
+
+export default TextInputMask;

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 
 import {
   TextInput,
@@ -14,39 +14,34 @@ export { mask, unmask, setMask };
 
 const TextInputMask = React.forwardRef((props, ref) => {
   const inputRef = useRef();
-  const masked = useRef(false);
-  const [prevMask, setPrevMask] = useState(props.mask);
-  const [prevValue, setPrevValue] = useState(props.mask);
+  const masked = useRef();
 
   useEffect(() => {
-    if (props.maskDefaultValue && props.mask && props.value) {
+    if (props.maskDefaultValue && props.mask && props.value)
       mask(
         props.mask,
         "" + props.value,
         text => inputRef.current && inputRef.current.setNativeProps({ text })
       );
-    }
-
     if (props.mask && !masked.current) {
-      masked.current = true;
       inputRef.current && setMask(findNodeHandle(inputRef.current), props.mask);
+      masked.current = true;
     }
   }, []);
 
-  if (prevValue !== props.value) {
-    props.mask &&
-      mask(
-        props.mask,
-        "" + props.value,
-        text => !!inputRef.current && inputRef.current.setNativeProps({ text })
-      );
-    setPrevValue(props.value);
-  }
-
-  if (prevMask !== props.mask) {
+  // Check if value change
+  useEffect(() => {
+    mask(
+      props.mask,
+      "" + props.value,
+      text => inputRef.current && inputRef.current.setNativeProps({ text })
+    );
+  }, [props.value]);
+  
+  //Check if mask change
+  useEffect(() => {
     inputRef.current && setMask(findNodeHandle(inputRef.current), props.mask);
-    setPrevMask(props.mask);
-  }
+  }, [props.mask]);
 
   return (
     <TextInput
