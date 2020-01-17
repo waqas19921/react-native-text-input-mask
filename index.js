@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useRef } from "react";
 
 import {
   TextInput,
@@ -12,11 +12,31 @@ const unmask = NativeModules.RNTextInputMask.unmask;
 const setMask = NativeModules.RNTextInputMask.setMask;
 export { mask, unmask, setMask };
 
-const TextInputMask = React.forwardRef((props, ref) => {
-  const inputRef = useRef();
-  const masked = useRef();
+function useCombinedRefs(...refs) {
+  const targetRef = useRef()
 
   useEffect(() => {
+    refs.forEach(ref => {
+      if (!ref) return
+
+      if (typeof ref === 'function') {
+        ref(targetRef.current)
+      } else {
+        ref.current = targetRef.current
+      }
+    })
+  }, [refs])
+
+  return targetRef
+}
+
+const TextInputMask = React.forwardRef((props, ref) => {
+  const inputRef = useRef(null);
+  const combinedRef = useCombinedRefs(ref, inputRef)
+  const masked = useRef(false);
+  const isMounted = useRef(false);
+
+  useLayoutEffect(() => {
     if (props.maskDefaultValue && props.mask && props.value)
       mask(
         props.mask,
@@ -27,11 +47,15 @@ const TextInputMask = React.forwardRef((props, ref) => {
       inputRef.current && setMask(findNodeHandle(inputRef.current), props.mask);
       masked.current = true;
     }
+    isMounted.current = true;
+    return ()=>{
+      isMounted.current = false
+    }
   }, []);
 
   // Check if value change
   useEffect(() => {
-    mask(
+    isMounted.current && props.mask && mask(
       props.mask,
       "" + props.value,
       text => inputRef.current && inputRef.current.setNativeProps({ text })
@@ -40,17 +64,14 @@ const TextInputMask = React.forwardRef((props, ref) => {
   
   //Check if mask change
   useEffect(() => {
-    inputRef.current && setMask(findNodeHandle(inputRef.current), props.mask);
+    isMounted.current && inputRef.current && setMask(findNodeHandle(inputRef.current), props.mask);
   }, [props.mask]);
 
   return (
     <TextInput
       {...props}
       value={undefined}
-      ref={textInputRef => {
-        inputRef.current = textInputRef;
-        ref && ref(textInputRef);
-      }}
+      ref={combinedRef}
       multiline={props.mask && Platform.OS === "ios" ? false : props.multiline}
       onChangeText={masked => {
         if (props.mask) {
@@ -69,4 +90,4 @@ TextInputMask.defaultProps = {
   maskDefaultValue: true
 };
 
-export default TextInputMask;
+export default React.memo(TextInputMask);
