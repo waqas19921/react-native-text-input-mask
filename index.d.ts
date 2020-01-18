@@ -2,7 +2,7 @@ import React, { ForwardRefExoticComponent, PropsWithoutRef, RefAttributes} from 
 import { TextInputProps, TextInput } from "react-native";
 
 export type onChangeTextMask = (
-  formatted: string,
+  formatted?: string,
   extracted?: string
 ) => void;
 

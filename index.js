@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef } from "react";
+import React, { useEffect, useRef, useImperativeHandle, useCallback } from "react";
 
 import {
   TextInput,
@@ -12,39 +12,64 @@ const unmask = NativeModules.RNTextInputMask.unmask;
 const setMask = NativeModules.RNTextInputMask.setMask;
 export { mask, unmask, setMask };
 
-function useCombinedRefs(...refs) {
-  const targetRef = useRef()
-
-  useEffect(() => {
-    refs.forEach(ref => {
-      if (!ref) return
-
-      if (typeof ref === 'function') {
-        ref(targetRef.current)
-      } else {
-        ref.current = targetRef.current
-      }
-    })
-  }, [refs])
-
-  return targetRef
-}
-
-const TextInputMask = React.forwardRef((props, ref) => {
-  const inputRef = useRef(null);
-  const combinedRef = useCombinedRefs(ref, inputRef)
+function TextInputMask(props, ref){
+  const inputRef = useRef();
+  const prevMask = useRef(props.mask)
+  const prevValue = useRef(props.value)
   const masked = useRef(false);
   const isMounted = useRef(false);
 
-  useLayoutEffect(() => {
-    if (props.maskDefaultValue && props.mask && props.value)
-      mask(
-        props.mask,
-        "" + props.value,
-        text => inputRef.current && inputRef.current.setNativeProps({ text })
-      );
+ const setNativeMask = useCallback(
+  (newInputMask)=>{
+    inputRef.current && setMask(findNodeHandle(inputRef.current), newInputMask);
+  },[inputRef.current]);
+
+  const setNativeTextMask = useCallback((value, inputMask)=>{
+    inputMask && mask(
+      inputMask,
+      "" + value,
+      text =>{
+        inputRef.current && inputRef.current.setNativeProps({ text });
+        prevValue.current = ""+ value;
+      }
+    );
+   },[inputRef.current, prevValue.current]);
+
+  const onChangeText = useCallback(masked => {
+    if(masked === prevValue.current) return;
+      if (props.mask) {
+        const _unmasked = unmask(props.mask, masked, unmasked => {
+          props.onChangeText && props.onChangeText(masked, unmasked);
+        });
+      } else {
+        props.onChangeText && props.onChangeText(masked);
+      }
+  },[props.onChangeText,prevValue.current])
+  
+  useImperativeHandle(ref,()=>({
+    isFocused : ()=>{
+      return inputRef.current && inputRef.current.isFocused()
+    },
+    focus: ()=>{
+      return inputRef.current && inputRef.current.focus();
+    },
+    blur : ()=>{
+      return inputRef.current && inputRef.current.blur();
+    },
+    clear: ()=>{
+      return inputRef.current && inputRef.current.clear();
+    },
+    setNativeProps :  ({ mask: inputMask, text, ...nativeProps})=>{
+      if( (inputMask || props.mask) && (text || props.value)) setNativeTextMask(text || props.value, inputMask || props.mask);
+      if(inputMask !== props.mask) setNativeMask(inputMask);
+      return Object.keys(nativeProps).length && inputRef.current && inputRef.current.setNativeProps(nativeProps)
+    }
+  }));
+ 
+ useEffect(() => {
+   if (props.maskDefaultValue && props.mask && props.value) setNativeTextMask(props.value, props.mask)
     if (props.mask && !masked.current) {
-      inputRef.current && setMask(findNodeHandle(inputRef.current), props.mask);
+      setNativeMask(props.mask);
       masked.current = true;
     }
     isMounted.current = true;
@@ -54,40 +79,30 @@ const TextInputMask = React.forwardRef((props, ref) => {
   }, []);
 
   // Check if value change
-  useEffect(() => {
-    isMounted.current && props.mask && mask(
-      props.mask,
-      "" + props.value,
-      text => inputRef.current && inputRef.current.setNativeProps({ text })
-    );
-  }, [props.value]);
-  
+  if(props.value !== prevValue.current){
+      isMounted.current && setNativeTextMask(props.value,props.mask);
+  }
   //Check if mask change
-  useEffect(() => {
-    isMounted.current && inputRef.current && setMask(findNodeHandle(inputRef.current), props.mask);
-  }, [props.mask]);
+  if(props.mask !== prevMask.current){
+    isMounted.current && setNativeMask(props.mask);
+    prevMask.current = props.mask;
+  }
 
   return (
     <TextInput
+      ref={inputRef}
       {...props}
       value={undefined}
-      ref={combinedRef}
       multiline={props.mask && Platform.OS === "ios" ? false : props.multiline}
-      onChangeText={masked => {
-        if (props.mask) {
-          const _unmasked = unmask(props.mask, masked, unmasked => {
-            props.onChangeText && props.onChangeText(masked, unmasked);
-          });
-        } else {
-          props.onChangeText && props.onChangeText(masked);
-        }
-      }}
+      onChangeText={onChangeText}
     />
   );
-});
+}
+
+TextInputMask = React.forwardRef(TextInputMask);
 
 TextInputMask.defaultProps = {
   maskDefaultValue: true
 };
 
-export default React.memo(TextInputMask);
+export default React.memo(TextInputMask,(prevProps,nextProps)=>prevProps.mask === nextProps.mask && prevProps.value === nextProps.value);
